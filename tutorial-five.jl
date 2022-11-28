@@ -31,6 +31,98 @@ end
 # ╔═╡ 925b8bf1-d877-451a-9a44-bc60c9c37f69
 using Printf
 
+# ╔═╡ 36822ef0-7a2b-4983-a499-53853403c695
+using Roots
+
+# ╔═╡ c600260d-7a49-4591-a070-212b55a60a8b
+md"## Question 1"
+
+# ╔═╡ b5553259-dc0e-4de5-87d4-73ba6376adeb
+md"
+- Demand elasticity $\alpha$ $(@bind α Slider(0.8:0.01:1, default = 1, show_value = true))
+
+"
+
+# ╔═╡ a8d351eb-da5d-431a-be4c-a9d7809d9f27
+begin
+	Pd(q) = Pd(q, 1.)
+	Pd(q, α) = (1_000 / q)^(1 / α)
+	
+	Ps(q) = q / 10
+
+	Ps_taxed(q) = Ps(q) / 0.81
+
+	function dw_loss(α, q, q′)
+		g(x) = 1000 * (α ≈ 1 ? log(x) : x^(1 - α) / (1 - α)) - x^2 / 20
+		return g(q′) - g(q)
+	end
+end
+
+# ╔═╡ 7cdf05d1-ae50-4477-bfb1-f6824c647290
+let
+	Q = range(40, 150; length = 501)
+
+	qprime = find_zero(q -> Pd(q, α) - Ps_taxed(q), (0, 200)) 
+	pprime = Ps_taxed(qprime)
+
+	xticks = [range(extrema(Q)...; step = 10)..., qprime] 
+	yticks = [(0:5:21)..., pprime] 
+
+	xticklabels = [
+		i < length(xticks) ? @sprintf("%.0f", x) : @sprintf("%.2f", x)
+		for (i, x) ∈ xticks |> enumerate
+	]
+
+	
+	yticklabels = [
+		i < length(yticks) ? @sprintf("%.0f", x) : @sprintf("%.2f", x)
+		for (i, x) ∈ yticks |> enumerate
+	]
+	
+	
+	fig = plot(; 
+		dpi = 250,
+		ylims = (0, 20), yticks = (yticks, yticklabels),
+		xlims = (40, 150), xticks = (xticks, xticklabels)
+	)
+
+	plot!(fig, Q, q -> Pd(q, α); label = "Inverse demand")
+	plot!(fig, Q, Ps; label = "Inverse supply")
+	plot!(fig, Q, Ps_taxed; c = :darkblue, label = "Inverse supply\n(after tax)")
+
+	scatter!(fig, [qprime], [pprime]; c = :black, label = nothing)
+	scatter!(fig, [qprime], [Ps(qprime)]; c = :black, label = nothing)
+
+	
+	plot!(
+		fig, [qprime, qprime], [pprime, 0], linestyle = :dash, c = :black,
+		label = nothing
+	)
+
+	plot!(
+		fig, [0, qprime], [pprime, pprime], linestyle = :dash, c = :black,
+		label = nothing
+	)
+
+	qfreemarket = find_zero(q -> Pd(q, α) - Ps(q), (0, 200))
+	
+	Qdeadweight = range(qprime, qfreemarket; length = 501) 
+
+	plot!(
+		fig, Qdeadweight, q -> Pd(q, α);
+		fillrange = q -> Ps(q), fillalpha = 0.2, 
+		linewidth = 0,
+		label = "Deadweight loss", c = :darkgreen
+	)
+
+	dw = round(dw_loss(α, qprime, qfreemarket); digits = 2)
+	
+	annotate!(
+		fig, 170, 5, text("Deadweight loss:\n\$$(dw)\$", 10)
+	)
+
+end
+
 # ╔═╡ 7fddfae4-6ce1-11ed-35da-997b1b68abc3
 md"## Question 2"
 
@@ -165,10 +257,12 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 
 [compat]
 Plots = "~1.36.4"
 PlutoUI = "~0.7.48"
+Roots = "~2.0.8"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -177,7 +271,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.1"
 manifest_format = "2.0"
-project_hash = "7e5eaf008ce18c1da44cced9c62cdafbd06f0c91"
+project_hash = "a14a2f19ad36602bf8f1a674052638e40173dd65"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -254,6 +348,11 @@ git-tree-sha1 = "417b0ed7b8b838aa6ca0a87aadf1bb9eb111ce40"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.12.8"
 
+[[deps.CommonSolve]]
+git-tree-sha1 = "9441451ee712d1aec22edad62db1a9af3dc8d852"
+uuid = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
+version = "0.2.3"
+
 [[deps.Compat]]
 deps = ["Dates", "LinearAlgebra", "UUIDs"]
 git-tree-sha1 = "aaabba4ce1b7f8a9b34c015053d3b1edf60fa49c"
@@ -264,6 +363,12 @@ version = "4.4.0"
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "0.5.2+0"
+
+[[deps.ConstructionBase]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "fb21ddd70a051d882a1686a5a550990bbe371a95"
+uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+version = "1.4.1"
 
 [[deps.Contour]]
 git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
@@ -350,6 +455,10 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "aa31987c2ba8704e23c6c8ba8a4f769d5d7e4f91"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.10+0"
+
+[[deps.Future]]
+deps = ["Random"]
+uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[deps.GLFW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pkg", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll"]
@@ -787,6 +896,12 @@ git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
 
+[[deps.Roots]]
+deps = ["ChainRulesCore", "CommonSolve", "Printf", "Setfield"]
+git-tree-sha1 = "a3db467ce768343235032a1ca0830fc64158dadf"
+uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+version = "2.0.8"
+
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
@@ -799,6 +914,12 @@ version = "1.1.1"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[[deps.Setfield]]
+deps = ["ConstructionBase", "Future", "MacroTools", "StaticArraysCore"]
+git-tree-sha1 = "e2cc6d8c88613c05e1defb55170bf5ff211fbeac"
+uuid = "efcf1570-3423-57d1-acb7-fd33fddbac46"
+version = "1.1.1"
 
 [[deps.Showoff]]
 deps = ["Dates", "Grisu"]
@@ -834,6 +955,11 @@ deps = ["ChainRulesCore", "IrrationalConstants", "LogExpFunctions", "OpenLibm_jl
 git-tree-sha1 = "d75bda01f8c31ebb72df80a46c88b25d1c79c56d"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "2.1.7"
+
+[[deps.StaticArraysCore]]
+git-tree-sha1 = "6b7ba252635a5eff6a0b0664a41ee140a1c9e72a"
+uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
+version = "1.4.0"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -1138,8 +1264,13 @@ version = "1.4.1+0"
 
 # ╔═╡ Cell order:
 # ╠═a12648e2-f2a8-480e-9877-8f8a863bdb80
-# ╠═9da1bd86-84be-4e7b-a7a0-9358b173b9fb
+# ╟─9da1bd86-84be-4e7b-a7a0-9358b173b9fb
 # ╠═925b8bf1-d877-451a-9a44-bc60c9c37f69
+# ╠═36822ef0-7a2b-4983-a499-53853403c695
+# ╟─c600260d-7a49-4591-a070-212b55a60a8b
+# ╟─b5553259-dc0e-4de5-87d4-73ba6376adeb
+# ╟─a8d351eb-da5d-431a-be4c-a9d7809d9f27
+# ╟─7cdf05d1-ae50-4477-bfb1-f6824c647290
 # ╟─7fddfae4-6ce1-11ed-35da-997b1b68abc3
 # ╟─1ac58cd0-3cb7-42be-9a93-22831db1c911
 # ╟─52f2e8b2-2e0b-4b0a-8301-4cc82b64d001
